@@ -7,6 +7,7 @@ Gem::Specification.new do |spec|
   spec.version = NpmExt::VERSION
   spec.authors = ["Alexandra Østermark"]
   spec.email = ["alex.cramt@gmail.com"]
+  spec.license = "MIT"
 
   spec.summary = ""
   spec.description = ""
