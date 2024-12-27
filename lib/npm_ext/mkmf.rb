@@ -42,15 +42,16 @@ module NpmExt
     end
 
     def create_rollup_config(dir)
-      parse_package_json(dir).map do |package|
+      parse_package_json(dir).to_h do |package|
         hash = Digest::MD5.hexdigest(package.name.to_s)
-        configs = "rollup.config.#{hash}.js"
-        File.write(configs, "module.exports = #{JSON.generate(
+        config = "rollup.config.#{hash}.js"
+        output_js = "#{hash}.npm_ext.js"
+        File.write(config, "module.exports = #{JSON.generate(
           {
             # TODO: if no file provided get the input file from package.json
             input: "node_modules/#{package.name}/#{package.file_to_bundle}",
             output: {
-              file: "#{hash}.npm_ext.so",
+              file: output_js,
               name: package.name,
               format: "iife",
             },
@@ -59,7 +60,10 @@ module NpmExt
             end,
           },
         )}")
-        configs
+        [package.name, {
+          rollup_config: config,
+          output_js: output_js,
+        }]
       end
     end
 
@@ -70,10 +74,13 @@ module NpmExt
         \tcp #{dir}/package*.json ./ || :
         \tnpm ci
         \tnpm i #{ROLLUP_PACKAGES.join(" ")}
-        #{configs.map { |x| "\tnpx rollup --config #{x}" }.join("\n")}
+        #{configs.map { |_, x| "\tnpx rollup --config #{x[:rollup_config]}" }.join("\n")}
+        \trm -rf npm_ext.so
+        \tnode -e 'const fs = require("fs"); fs.writeFileSync("npm_ext.so", JSON.stringify(Object.fromEntries(#{configs.transform_values { |x| x[:output_js] }.to_a.to_json}.map(([k, v]) => [k, fs.readFileSync(v, "utf8")]))))'
         cleanup:
         \trm -rf node_modules
         \trm -rf rollup.config.*.js
+        \trm -rf *npm_ext.js
       MAKE
     end
   end
