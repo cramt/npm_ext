@@ -10,9 +10,7 @@ module NpmExt
       end
 
       def to_json(*_args)
-        <<~JS
-          require("#{@name}")()
-        JS
+        "require(\"#{@name}\")()"
       end
     end
 
@@ -44,9 +42,8 @@ module NpmExt
     def create_rollup_config(dir)
       parse_package_json(dir).to_h do |package|
         hash = Digest::MD5.hexdigest(package.name.to_s)
-        config = "rollup.config.#{hash}.js"
         output_js = "#{hash}.npm_ext.js"
-        File.write(config, "module.exports = #{JSON.generate(
+        config = "module.exports = #{JSON.generate(
           {
             # TODO: if no file provided get the input file from package.json
             input: "node_modules/#{package.name}/#{package.file_to_bundle}",
@@ -59,7 +56,7 @@ module NpmExt
               RollupConfigPlugin.new x
             end,
           },
-        )}")
+        )}"
         [package.name, {
           rollup_config: config,
           output_js: output_js,
@@ -70,13 +67,17 @@ module NpmExt
     def create_npm_makefile(dir)
       configs = create_rollup_config(dir)
       File.write("Makefile", <<~MAKE)
+        .PHONY: install
         install:
         \tcp #{dir}/package*.json ./ || :
         \tnpm ci
         \tnpm i #{ROLLUP_PACKAGES.join(" ")}
-        #{configs.map { |_, x| "\tnpx rollup --config #{x[:rollup_config]}" }.join("\n")}
+        #{configs.map do |_, x|
+          "\techo '#{x[:rollup_config]}' > rollup.config.cjs && npx rollup --config && rm -rf rollup.config.cjs"
+        end.join("\n")}
         \trm -rf npm_ext.so
         \tnode -e 'const fs = require("fs"); fs.writeFileSync("npm_ext.so", JSON.stringify(Object.fromEntries(#{configs.transform_values { |x| x[:output_js] }.to_a.to_json}.map(([k, v]) => [k, fs.readFileSync(v, "utf8")]))))'
+        .PHONY: clean
         clean:
         \trm -rf node_modules
         \trm -rf rollup.config.*.js
