@@ -67,6 +67,7 @@ module NpmExt
     def create_npm_makefile(dir)
       configs = create_rollup_config(dir)
       File.write("Makefile", <<~MAKE)
+        sitearchdir ?= /tmp/
         .PHONY: install
         install:
         \tcp #{dir}/package*.json ./ || :
@@ -77,11 +78,13 @@ module NpmExt
         end.join("\n")}
         \trm -rf npm_ext.so
         \tnode -e 'const fs = require("fs"); fs.writeFileSync("npm_ext.so", JSON.stringify(Object.fromEntries(#{configs.transform_values { |x| x[:output_js] }.to_a.to_json}.map(([k, v]) => [k, fs.readFileSync(v, "utf8")]))))'
+        \tcp npm_ext.so $(sitearchdir)$(target_prefix)
         .PHONY: clean
         clean:
         \trm -rf node_modules
         \trm -rf rollup.config.*.js
         \trm -rf *npm_ext.js
+        \trm -rf npm_ext.so
       MAKE
     end
   end
