@@ -77,7 +77,7 @@ module NpmExt
         #{configs.map { |_, x| "\tnpx rollup --config #{x[:rollup_config]}" }.join("\n")}
         \trm -rf npm_ext.so
         \tnode -e 'const fs = require("fs"); fs.writeFileSync("npm_ext.so", JSON.stringify(Object.fromEntries(#{configs.transform_values { |x| x[:output_js] }.to_a.to_json}.map(([k, v]) => [k, fs.readFileSync(v, "utf8")]))))'
-        cleanup:
+        clean:
         \trm -rf node_modules
         \trm -rf rollup.config.*.js
         \trm -rf *npm_ext.js
