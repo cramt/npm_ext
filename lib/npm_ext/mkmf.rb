@@ -43,13 +43,14 @@ module NpmExt
 
     def create_rollup_config(dir)
       parse_package_json(dir).map do |package|
-        configs = "rollup.config.#{Digest::MD5.hexdigest(package.name.to_s)}.js"
+        hash = Digest::MD5.hexdigest(package.name.to_s)
+        configs = "rollup.config.#{hash}.js"
         File.write(configs, "module.exports = #{JSON.generate(
           {
             # TODO: if no file provided get the input file from package.json
             input: "node_modules/#{package.name}/#{package.file_to_bundle}",
             output: {
-              file: "#{package.name}.npm_ext.js",
+              file: "#{hash}.npm_ext.so",
               name: package.name,
               format: "iife",
             },
@@ -70,8 +71,9 @@ module NpmExt
         \tnpm ci
         \tnpm i #{ROLLUP_PACKAGES.join(" ")}
         #{configs.map { |x| "\tnpx rollup --config #{x}" }.join("\n")}
-        \tcat *.npm_ext.js > npm_ext.so
-        \tcp *.npm_ext.js ../../../../lib/
+        cleanup:
+        \trm -rf node_modules
+        \trm -rf rollup.config.*.js
       MAKE
     end
   end
