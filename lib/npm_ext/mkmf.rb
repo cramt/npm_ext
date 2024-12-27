@@ -66,7 +66,7 @@ module NpmExt
       configs = create_rollup_config(dir)
       File.write("Makefile", <<~MAKE)
         install:
-        \tcp #{dir}/package*.json ./
+        \tcp #{dir}/package*.json ./ || :
         \tnpm ci
         \tnpm i #{ROLLUP_PACKAGES.join(" ")}
         #{configs.map { |x| "\tnpx rollup --config #{x}" }.join("\n")}
